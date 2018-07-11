@@ -1,0 +1,395 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.w3.org/1999/xhtml">
+<head th:replace="fragment/head :: head"></head>
+<body>
+<div class="container">
+    <div id="loader" class="loading hidden">Loading&#8230;</div>
+
+    <div th:replace="fragment/navbar :: navbar"></div>
+
+    <div class="well">
+
+        <div th:if="${directory}">
+
+            <script th:inline="javascript">
+                /*<![CDATA[*/
+                    var directoryId = [[${directory.id}]];
+                    messages.fileNotReadable = [[#{drive.file.not_readable}]];
+                    messages.rename = [[#{rename}]];
+                    messages.delete = [[#{delete}]];
+                    messages.share = [[#{share}]];
+                    messages.onlyFilesCanBeShared = [[#{share.directory.error}]];
+                    messages.onlyFilesCanBeSDownloaded = [[#{drive.download.directory_error}]];
+                    messages.download = [[#{drive.download}]];
+                    config.readableMimeTypes = [[${readableMimeTypes}]];
+                /*]]>*/
+            </script>
+
+            <!-- Breadcrumbs -->
+            <ol class="breadcrumb" id="breadcrumbs"></ol>
+
+            <!-- Buttons -->
+            <div class="row">
+                <div class="col-md-8 col-xs-12">
+                    <form th:action="@{/api/resource/search}" class="" name="search">
+                        <div class="row">
+                            <div class="col-sm-4 col-xs-8">
+                                <div class="form-group">
+                                    <input type="text" class="form-control" name="name"
+                                           th:placeholder="#{drive.search.placeholder}"/>
+                                </div>
+                            </div>
+                            <div class="col-sm-1 col-xs-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <span class="glyphicon glyphicon-search"></span>
+                                </button>
+                            </div>
+                            <div class="col-sm-1 col-xs-1">
+                                <button type="reset" class="btn btn-warning hidden">
+                                    <span class="glyphicon glyphicon-remove"></span>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="col-md-4 col-xs-12">
+                    <div class="row">
+                        <div class="col-md-6 col-xs-6">
+                            <button
+                                    class="btn btn-primary pull-right add-resource"
+                                    id="add-directory"
+                                    data-toggle="modal"
+                                    data-backdrop="static"
+                                    data-target="#addDirectoryModal">
+                                <span class="glyphicon glyphicon-folder-open"></span>
+                                <span th:text="#{drive.resource.directory}"></span>
+                            </button>
+                        </div>
+                        <div class="col-md-6 col-xs-6">
+                            <button
+                                    class="btn btn-success pull-right add-resource"
+                                    id="upload-file"
+                                    data-toggle="modal"
+                                    data-backdrop="static"
+                                    data-target="#uploadFileModal">
+                                <span class="glyphicon glyphicon-cloud-upload"></span>
+                                <span th:text="#{drive.resource.file}"></span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <hr/>
+
+            <div class="alert alert-success" id="drive-alert-success" style="display: none">
+                <span class="glyphicon glyphicon-ok-sign"></span>
+                <span class="glyphicon glyphicon-remove"></span>
+                <span id="drive-alert-success-text"></span>
+            </div>
+            <div class="alert alert-danger" id="drive-alert-danger" style="display: none">
+                <span class="glyphicon glyphicon-exclamation-sign"></span>
+                <span class="glyphicon glyphicon-remove"></span>
+                <span id="drive-alert-danger-text"></span>
+            </div>
+
+            <div class="pull-right">
+                <button
+                        id="delete-checked"
+                        data-toggle="modal"
+                        data-target="#deleteCheckedModal"
+                        class="btn btn-danger btn-sm disabled">
+                    <span class="glyphicon glyphicon-trash"></span>
+                    <span th:text="#{drive.delete_checked}"></span>
+                </button>
+            </div>
+            <div class="clearfix"></div>
+
+            <!-- Listing -->
+            <div class="alert alert-info text-center hidden" th:text="#{drive.empty}" id="resources-empty"></div>
+            <table class="table table-striped table table-hover hidden" id="resources">
+                <thead>
+                <tr>
+                    <th>
+                        <span th:text="#{drive.column.name}"></span>
+                        <span data-column="name" data-dir="ASC" class="sort active">
+                            <span class="glyphicon glyphicon-arrow-up"></span>
+                        </span>
+                        <span data-column="name" data-dir="DESC" class="sort">
+                            <span class="glyphicon glyphicon-arrow-down"></span>
+                        </span>
+                    </th>
+                    <th>
+                        <span th:text="#{drive.column.modification_time}"></span>
+                        <span data-column="modification_time" data-dir="ASC" class="sort">
+                            <span class="glyphicon glyphicon-arrow-up"></span>
+                        </span>
+                        <span data-column="modification_time" data-dir="DESC" class="sort">
+                            <span class="glyphicon glyphicon-arrow-down"></span>
+                        </span>
+                    </th>
+                    <th>
+                        <span th:text="#{drive.column.size}"></span>
+                        <span data-column="size" data-dir="ASC" class="sort">
+                            <span class="glyphicon glyphicon-arrow-up"></span>
+                        </span>
+                        <span data-column="size" data-dir="DESC" class="sort">
+                            <span class="glyphicon glyphicon-arrow-down"></span>
+                        </span>
+                    </th>
+                    <th>
+                        <a class="glyphicon glyphicon-th-list" id="check-all"></a>
+                    </th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div th:unless="${directory}">
+            <div class="alert alert-danger" th:text="#{drive.directory.not_found}"></div>
+        </div>
+
+    </div>
+
+    <!-- Delete checked modal -->
+    <div th:if="${directory}" class="modal fade" id="deleteCheckedModal" tabindex="-1" role="dialog"
+         aria-labelledby="myModalLabel">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <form class="form-horizontal" method="post" name="delete-checked" autocomplete="off">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title" th:text="#{drive.modal.delete_checked.title}"></h4>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-danger hidden"></div>
+                        <div th:text="#{drive.modal.delete_checked.text}"></div>
+                        <div id="resources-list"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal" th:text="#{cancel}"></button>
+                        <button type="submit" class="btn btn-primary" th:text="#{yes}"></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add directory modal -->
+    <div th:if="${directory}" class="modal fade" id="addDirectoryModal" tabindex="-1" role="dialog"
+         aria-labelledby="myModalLabel">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <form th:action="@{/api/directory}" class="form-horizontal" method="post" name="directory-create"
+                      autocomplete="off">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title" th:text="#{drive.modal.add_directory.title}"></h4>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="name" class="col-sm-2 control-label" th:text="#{resource.name}"></label>
+                            <div class="col-sm-10">
+                                <input type="text" name="name" class="form-control"
+                                       th:placeholder="#{drive.directory.default_name}"/>
+                                <input type="hidden" name="parent_id"/>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="reset" class="btn btn-default" data-dismiss="modal" th:text="#{close}"></button>
+                        <button type="submit" class="btn btn-primary" th:text="#{create}"></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload file modal -->
+    <div th:if="${directory}" class="modal fade" id="uploadFileModal" tabindex="-1" role="dialog"
+         aria-labelledby="myModalLabel">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <form class="form-horizontal" name="file-upload" enctype="multipart/form-data" th:action="@{/api/file}">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title" th:text="#{drive.modal.upload_file.title}"></h4>
+                    </div>
+                    <div class="modal-body">
+                        <div class="hidden" id="upload-file-alert"></div>
+                        <div class="progress hidden">
+                            <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0"
+                                 aria-valuemax="100" style="min-width: 2em;width: 0%;"></div>
+                            <hr/>
+                        </div>
+                        <div class="form-group">
+                            <label for="file" class="col-sm-2 control-label" th:text="#{file}"></label>
+                            <div class="col-sm-10">
+                                <input type="hidden" name="parent_id" th:value="${directory.id}"/>
+                                <input type="file" class="form-control" id="file" name="file" th:placeholder="#{file}"
+                                       multiple="multiple"/>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="cancel btn btn-default" data-dismiss="modal"
+                                th:text="#{close}"></button>
+                        <button type="submit" class="btn btn-primary" th:text="#{upload}"></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rename modal -->
+    <div th:if="${directory}" class="modal fade" id="renameModal" tabindex="-1" role="dialog"
+         aria-labelledby="myModalLabel">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <form class="form-horizontal" name="resource-rename" autocomplete="off">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title" th:text="#{rename}"></h4>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-danger hidden"></div>
+                        <span th:text="#{rename}"></span> <span class="text-bold" id="rename-name"></span>
+                        <input type="hidden" name="id" value=""/>
+                        <div class="form-group">
+                            <div class="col-sm-12">
+                                <input type="text" class="form-control" name="name" id="name"
+                                       th:placeholder="#{resource.new_name}"/>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal" th:text="#{close}"></button>
+                        <button type="submit" class="btn btn-primary" th:text="#{save}"></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Open file modal -->
+    <div th:if="${directory}" class="modal fade" id="openFileModal" tabindex="-1" role="dialog"
+         aria-labelledby="myModalLabel">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="file-name"></h4>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger"></div>
+                    <div id="file-loading" th:text="#{loading}"></div>
+                    <div class="progress">
+                        <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0"
+                             aria-valuemax="100" style="min-width: 2em;width: 0%;"></div>
+                    </div>
+                    <div id="file-content"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default cancel" data-dismiss="modal"
+                            th:text="#{close}"></button>
+                    <a href="" th:text="#{drive.download}" id="download-link" class="btn btn-primary"></a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete file modal -->
+    <div th:if="${directory}" class="modal fade" id="deleteFileModal" tabindex="-1" role="dialog"
+         aria-labelledby="myModalLabel">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <form class="form-horizontal" name="delete-file">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title" th:text="#{drive.modal.delete_file.title}"></h4>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-danger hidden"></div>
+                        <span th:utext="#{drive.modal.delete_file.text}"></span>
+                        <input type="hidden" name="id" value=""/>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal" th:text="#{cancel}"></button>
+                        <button type="submit" class="btn btn-primary" th:text="#{yes}"></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete directory modal -->
+    <div th:if="${directory}" class="modal fade" id="deleteDirectoryModal" tabindex="-1" role="dialog"
+         aria-labelledby="myModalLabel">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <form class="form-horizontal" name="delete-directory">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title" th:text="#{drive.modal.delete_directory.title}"></h4>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-danger hidden"></div>
+                        <span th:utext="#{drive.modal.delete_directory.text}"></span>
+                        <input type="hidden" name="id" value=""/>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal" th:text="#{cancel}"></button>
+                        <button type="submit" class="btn btn-danger" th:text="#{yes}"></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share modal -->
+    <div th:if="${directory}" class="modal fade" id="shareModal" tabindex="-1" role="dialog"
+         aria-labelledby="myModalLabel">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <form th:action="@{/api/resource/share}" class="form-horizontal" name="file-share" method="post">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title"></h4>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-success hidden"></div>
+                        <div class="alert alert-danger hidden"></div>
+                        <div class="form-group">
+                            <label for="type" class="col-sm-6 control-label" th:text="#{share.label}"></label>
+                            <div class="col-sm-6">
+                                <select class="form-control" name="type" id="type">
+                                    <option th:text="#{share.type.once}" value="ONCE"></option>
+                                    <option th:text="#{share.type.hour}" value="TEMPORARILY_HOUR"></option>
+                                    <option th:text="#{share.type.day}" value="TEMPORARILY_DAY"></option>
+                                    <option th:text="#{share.type.week}" value="TEMPORARILY_WEEK"></option>
+                                </select>
+                            </div>
+                        </div>
+                        <input type="hidden" name="id" value=""/>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal" th:text="#{close}"></button>
+                        <button type="submit" class="btn btn-danger" th:text="#{share}"></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div th:replace="fragment/footer :: footer"></div>
+</div>
+</body>
+</html>

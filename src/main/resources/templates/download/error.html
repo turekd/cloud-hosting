@@ -1,0 +1,13 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.w3.org/1999/xhtml">
+<head th:replace="fragment/head :: head"></head>
+<body>
+<div class="container">
+    <div th:replace="fragment/navbar :: navbar"></div>
+
+    <div class="alert alert-danger" th:text="#{download.not_found}"></div>
+
+    <div th:replace="fragment/footer :: footer"></div>
+</div>
+</body>
+</html>
